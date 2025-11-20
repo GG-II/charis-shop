@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============= USUARIOS Y AUTENTICACIÓN =============
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  password  String
+  fullName  String   @map("full_name")
+  role      String   // "ADMIN" o "WAITER"
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders    Order[]
+  sales     Sale[]
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// ============= CLIENTES =============
+
+model Customer {
+  id           Int      @id @default(autoincrement())
+  customerCode String   @unique @map("customer_code")
+  name         String
+  phone        String?
+  totalOrders  Int      @default(0) @map("total_orders")
+  totalSpent   Float    @default(0) @map("total_spent")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  locations Location[]
+  orders    Order[]
+
+  @@map("customers")
+}
+
+model Location {
+  id         Int      @id @default(autoincrement())
+  customerId Int      @map("customer_id")
+  name       String
+  latitude   Float?
+  longitude  Float?
+  notes      String?
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders   Order[]
+
+  @@map("locations")
+}
+
+// ============= PRODUCTOS =============
+
+model Category {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  icon         String?
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  basePrice   Float    @map("base_price")
+  costPrice   Float    @map("cost_price")
+  categoryId  Int      @map("category_id")
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  category      Category       @relation(fields: [categoryId], references: [id])
+  images        ProductImage[]
+  variantGroups VariantGroup[]
+  toppingGroups ToppingGroup[]
+  orderItems    OrderItem[]
+  comboItems    ComboItem[]
+
+  @@map("products")
+}
+
+model ProductImage {
+  id           Int      @id @default(autoincrement())
+  productId    Int      @map("product_id")
+  url          String
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+model VariantGroup {
+  id            Int      @id @default(autoincrement())
+  productId     Int      @map("product_id")
+  name          String
+  required      Boolean  @default(false)
+  allowMultiple Boolean  @default(false) @map("allow_multiple")
+  maxSelections Int?     @map("max_selections")
+  displayOrder  Int      @default(0) @map("display_order")
+
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options VariantOption[]
+
+  @@map("variant_groups")
+}
+
+model VariantOption {
+  id             Int      @id @default(autoincrement())
+  variantGroupId Int      @map("variant_group_id")
+  name           String
+  priceModifier  Float    @default(0) @map("price_modifier")
+  imageUrl       String?  @map("image_url")
+  available      Boolean  @default(true)
+  displayOrder   Int      @default(0) @map("display_order")
+
+  variantGroup VariantGroup @relation(fields: [variantGroupId], references: [id], onDelete: Cascade)
+
+  @@map("variant_options")
+}
+
+model ToppingGroup {
+  id           Int      @id @default(autoincrement())
+  productId    Int      @map("product_id")
+  name         String
+  displayOrder Int      @default(0) @map("display_order")
+
+  product Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  levels  ToppingLevel[]
+
+  @@map("topping_groups")
+}
+
+model ToppingLevel {
+  id             Int     @id @default(autoincrement())
+  toppingGroupId Int     @map("topping_group_id")
+  level          String  // "NONE", "LITTLE", "NORMAL", "MUCH"
+  priceModifier  Float   @default(0) @map("price_modifier")
+  isDefault      Boolean @default(false) @map("is_default")
+
+  toppingGroup ToppingGroup @relation(fields: [toppingGroupId], references: [id], onDelete: Cascade)
+
+  @@map("topping_levels")
+}
+
+// ============= COMBOS =============
+
+model Combo {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?  @map("image_url")
+  available   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items      ComboItem[]
+  orderItems OrderItem[]
+
+  @@map("combos")
+}
+
+model ComboItem {
+  id                 Int     @id @default(autoincrement())
+  comboId            Int     @map("combo_id")
+  productId          Int     @map("product_id")
+  quantity           Int     @default(1)
+  predefinedVariants String? @map("predefined_variants")
+
+  combo   Combo   @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("combo_items")
+}
+
+// ============= PEDIDOS =============
+
+model Order {
+  id          Int      @id @default(autoincrement())
+  customerId  Int      @map("customer_id")
+  userId      Int      @map("user_id")
+  locationId  Int?     @map("location_id")
+  status      String   // "PENDING", "PREPARING", "READY", "DELIVERED", "CANCELLED"
+  subtotal    Float
+  deliveryFee Float    @default(0) @map("delivery_fee")
+  discount    Float    @default(0)
+  total       Float
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deliveredAt DateTime? @map("delivered_at")
+
+  customer Customer    @relation(fields: [customerId], references: [id])
+  user     User        @relation(fields: [userId], references: [id])
+  location Location?   @relation(fields: [locationId], references: [id])
+  items    OrderItem[]
+  sale     Sale?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id               Int     @id @default(autoincrement())
+  orderId          Int     @map("order_id")
+  productId        Int?    @map("product_id")
+  comboId          Int?    @map("combo_id")
+  quantity         Int
+  unitPrice        Float   @map("unit_price")
+  originalPrice    Float   @map("original_price")
+  selectedVariants String? @map("selected_variants")
+  selectedToppings String? @map("selected_toppings")
+  notes            String?
+  subtotal         Float
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+  combo   Combo?   @relation(fields: [comboId], references: [id])
+
+  @@map("order_items")
+}
+
+// ============= VENTAS =============
+
+model Sale {
+  id             Int      @id @default(autoincrement())
+  invoiceNumber  String   @unique @map("invoice_number")
+  orderId        Int      @unique @map("order_id")
+  userId         Int      @map("user_id")
+  paymentMethod  String   @map("payment_method") // "CASH", "TRANSFER", "CARD"
+  amountReceived Float    @map("amount_received")
+  change         Float
+  invoicePrinted Boolean  @default(false) @map("invoice_printed")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("sales")
+}
+
+// ============= AUDITORÍA =============
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  action    String
+  entity    String
+  entityId  Int?     @map("entity_id")
+  details   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}

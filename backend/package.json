@@ -13,11 +13,15 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio"
   },
-  "keywords": ["pos", "restaurant", "api"],
+  "keywords": [
+    "pos",
+    "restaurant",
+    "api"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "^7.0.0",
+    "@prisma/client": "^5.22.0",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -48,7 +52,7 @@
     "@typescript-eslint/parser": "^8.47.0",
     "eslint": "^9.39.1",
     "prettier": "^3.6.2",
-    "prisma": "^7.0.0",
+    "prisma": "^5.22.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
   }
